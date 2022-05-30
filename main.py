@@ -12,8 +12,9 @@ def main():
 
     grid = load_board(args["input"])
     
-    board = Board("Chinese", grid)
-    print(list(board.dead_pieces()))
+    board = Board("Chinese", grid, {1: "Black", 0: "White"})
+
+    print(list(board.regions))
 
 if __name__ == "__main__":
     main()

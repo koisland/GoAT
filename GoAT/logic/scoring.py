@@ -1,15 +1,19 @@
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Dict
+
+SCORING_SYSTEMS = ["Japanese", "Chinese"]
+# https://senseis.xmp.net/?JapaneseCountingExample
+# https://senseis.xmp.net/?ChineseCountingExample
 
 @dataclass
 class Score:
-    SCORING_SYSTEMS = ["Japanese", "Chinese"]
-    # https://senseis.xmp.net/?JapaneseCountingExample
-    # https://senseis.xmp.net/?ChineseCountingExample
+
     system: str
+    scores: Dict[str, int] = field(init=False)
 
     def validate_fields(self):
-        if self.system not in self.SCORING_SYSTEMS:
+        if self.system not in SCORING_SYSTEMS:
             raise Exception("Invalid scoring system.")
 
     def __post_init__(self):
