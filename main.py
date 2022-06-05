@@ -1,3 +1,5 @@
+import pprint
+import numpy as np
 import argparse
 from GoAT.logic.board import Board
 from GoAT.logic.scoring import Score
@@ -11,10 +13,12 @@ def main():
     args = vars(ap.parse_args())
 
     grid = load_board(args["input"])
+    scoreboard = Score("Chinese")
+    board = Board(grid, {1: "Black", 0: "White"})
+
+    board.clear_dead_regions()
+    print(board.grid)
+    scoreboard.score(board)
     
-    board = Board("Chinese", grid, {1: "Black", 0: "White"})
-
-    print(list(board.regions))
-
 if __name__ == "__main__":
     main()
