@@ -1,12 +1,15 @@
 from __future__ import annotations
 import collections
 import textwrap
+import logging
 import numpy as np
+
 from typing import Set, Tuple, List, Dict, Iterable
 from dataclasses import dataclass, field
 from itertools import product
 from collections import Counter
 
+logger = logging.getLogger("logic")
 
 @dataclass
 class Region:
@@ -100,17 +103,25 @@ class Region:
 @dataclass
 class Board:
     grid: np.ndarray
-    colors: Dict[int, str]
+    colors: Dict[str, float]
     regions: List[List[Tuple[int, int]]] = field(init=False)
 
     def validate_fields(self):
         x, y = self.grid.shape
         if x != y:
             raise Exception(f"Invalid grid shape. x:{x} =/= y: {y}")
+        if "Black" not in self.colors or "White" not in self.colors:
+            raise Exception(f"Invalid colors in provided colors: {self.colors.keys()}")
+        if not all(isinstance(piece_value, float) for piece_value in self.colors.values()):
+            raise Exception(f"All Black and White pieces must have a float value associated with them. {self.colors.values()}")
 
     def __post_init__(self):
+        self.rev_colors = {value: color for color, value in self.colors.items()}
         self.validate_fields()
 
+        logger.info(f"Pieces: {self.colors}")
+        logger.info(f"Starting board:\n\n{self.grid}\n")
+        
         self._get_regions()._join_nearby_regions()
 
     @property
@@ -124,20 +135,30 @@ class Board:
     @property
     def dead_regions(self):
         for region in self.regions:
+            # Skip empty regions.
             if np.isnan(region.color):
                 continue
 
             if region.is_dead:
                 yield region
+        
+    @property
+    def region_counts(self):
+        # Avoid nan as key.
+        return Counter("nan" if np.isnan(region.color) else region.color for region in self.regions)
 
     def clear_dead_regions(self) -> Board:
+        logger.info(f"Clearing dead regions from board.")
         for region in self.dead_regions:
-            for piece in region:
+            region_color = self.rev_colors[region.color]
+            for i, piece in enumerate(region, 1):
                 (row, col) = piece
                 self.grid[row, col] = np.nan
+            logger.info(f"Removed {i} {region_color} pieces from board.\n{region}")
         
         # Update regions.
         self._get_regions()._join_nearby_regions()
+        logger.debug(f"Updated and joined adjacent board regions after clearing dead regions.")
 
         return self
 
@@ -177,6 +198,7 @@ class Board:
                 regions.append(subregion)
 
         self.regions = regions
+        logger.debug(f"Detected {len(self.regions)} total regions.")
         return self
     
     def _join_nearby_regions(self) -> Board:
@@ -203,10 +225,12 @@ class Board:
                         if joined_region not in joined_regions:
                             joined_regions.append(joined_region)
 
-        for region in removed_regions:
-            print(f"Removing {region}")
-            self.regions.remove(region)
-        for region in joined_regions:
-            print(f"Added {region}")
-            self.regions.append(region)
+        for n_r, removed_region in enumerate(removed_regions, 1):
+            logger.debug(f"Joining regions. Removing:\n{removed_region}")
+            self.regions.remove(removed_region)
+        for n_j, new_region in enumerate(joined_regions, 1):
+            logger.debug(f"Joining regions. Adding:\n{new_region}")
+            self.regions.append(new_region)
+        logger.debug(f"Finished joining regions. Removed intermediate regions: {n_r}\nAdded joined regions: {n_j}\n")
+        
         return self

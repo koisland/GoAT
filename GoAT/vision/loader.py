@@ -1,8 +1,11 @@
 import cv2
 import statistics
 import imutils
+import logging
 import numpy as np
 from typing import Tuple, List, Dict, Iterator, Union
+
+logger = logging.getLogger("vision")
 
 class Piece:
     def __init__(self, cnt: np.ndarray, color: str):
@@ -166,20 +169,24 @@ def get_pieces(img: np.ndarray) -> Tuple[List[Piece], List[Piece]]:
 
 def load_board(img_path: str) -> np.ndarray:
     original = cv2.imread(img_path)
+    logger.info(f"Initializing goban from image: {img_path}")
 
     gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
 
     black_pieces, white_pieces = get_pieces(gray)
     
     (dim_x, dim_y), x_map, y_map = get_board_size(black_pieces, white_pieces)
+    logger.info(f"Estimated dimensions of board: (x: {dim_x}, y: {dim_y})")
 
     # Initialize board.
     board = np.zeros((dim_x, dim_y))
     board[:] = np.nan
 
+    piece_counter = {"black": 0, "white": 0}
     for pieces in [black_pieces, white_pieces]:
         for piece in pieces:
-            symbol = 0 if piece.color == "white" else 1
+            symbol = 0.0 if piece.color == "white" else 1.0
+            piece_counter[piece.color] += 1
 
             # Find closest board position based on absolute difference between x_pos and median value of mapped x_pos
             # to board position.
@@ -195,5 +202,7 @@ def load_board(img_path: str) -> np.ndarray:
 
             # Place piece on board. # Board positions start at 1 so must subtract.
             board[piece.y - 1, piece.x - 1] = symbol
+        
+    logger.info(f"Placed {sum(piece_counter.values())} pieces: {piece_counter}")
 
     return board
