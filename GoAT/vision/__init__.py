@@ -4,11 +4,13 @@ import pathlib
 log_dir = log_file = pathlib.Path(__file__).parents[2].joinpath("logs")
 if not log_dir.exists():
     log_dir.mkdir(parents=True)
-    
+
 log_file = log_dir.joinpath("run.log")
-logging.basicConfig(filename = log_file,
-                    level = logging.INFO,
-                    format = '%(asctime)s :%(levelname)s:%(name)s: %(message)s')
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format="%(asctime)s :%(levelname)s:%(name)s: %(message)s",
+)
 
 parent_logger = logging.getLogger("vision")
 parent_logger.setLevel(logging.INFO)

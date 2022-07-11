@@ -1,9 +1,9 @@
 # Go Automatic Tallier (GoAT)
-Automatically tally score for Go boards from an image. 
+Automatically tally score for Go boards from an image.
 
 Currently, only digital boards work (See below). A real-world image classifier is a WIP. Both version use `opencv-python` to parse the board from an image and `numpy` for scoring.
 
-![](images/5_5.png)
+![](docs/images/5_5.png)
 
 ---
 
@@ -23,14 +23,16 @@ git clone -b main git@github.com:koisland/GoAT.git
 cd GoAT
 ```
 
-### Conda
-```shell
-conda env create --file env/environment.yaml
-conda deactivate && conda activate GoAT
+### venv
+```
+virtualenv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Docker
 ```shell
+WIP
 ```
 
 ---
@@ -53,19 +55,19 @@ options:
   -k, --komi            Apply komi.
 ```
 
-For example, this command reads `images/9_9.png`, a digital image of a board and scores it using `Chinese` scoring with `komi` applied to White.
+For example, this command reads `docs/images/9_9.png`, a digital image of a board and scores it using `Chinese` scoring with `komi` applied to White.
 
-![](images/9_9.png)
+![](docs/images/9_9.png)
 
 ```shell
-python main.py -i images/9_9.png -s Chinese -k 
+python main.py -i docs/images/9_9.png -s Chinese -k
 ```
 ```shell
 {'Black': 44, 'White': 44.5}
 ```
 ---
 
-## Scoring 
+## Scoring
 Both `Chinese` and `Japanese` scoring methods are available with komi as a toggle-able option.
 
 By default, komi is set to `7.5` for Chinese scoring and `6.5` for Japanese scoring.
