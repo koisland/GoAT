@@ -48,7 +48,7 @@ class Score:
         """
         if self.scores["Black"] == self.scores["White"]:
             logger.info(f"Tie game. {self.scores}\n")
-        if self.scores["Black"] > self.scores["White"]:
+        elif self.scores["Black"] > self.scores["White"]:
             logger.info(f"Black wins. {self.scores}\n")
         else:
             logger.info(f"White wins. {self.scores}\n")
@@ -96,28 +96,57 @@ class Score:
             logger.info(
                 f"White ({white_piece_value}) has {self.scores['White']} pieces on board."
             )
-            logger.info(f"Added {self.scores['White']} to white's score")
+            logger.info(f"Added {self.scores['White']} to white's score\n")
 
         for region in board.regions:
             if np.isnan(region.color_val):
                 n_adjs = list(region.n_adj_pieces.values())
-                # Ignore if region has equal number of adj
-                if all(n_adjs[0] == n_adj for n_adj in n_adjs) and len(n_adjs) > 1:
-                    logger.info("Dame/seki territory. Ignored.")
-                    logger.info(f"\n{region}")
-                    continue
+                equal_adj = all(n_adjs[0] == n_adj for n_adj in n_adjs)
+
+                if region.is_dame:
+                    if self.system == "Japanese":
+                        logger.info("Dame territory. Ignored.")
+                        logger.info(f"{region}")
+                        continue
+
+                    # Only in chinese scoring, would any remaining territory be filled.
+                    elif (
+                        self.system == "Chinese" and equal_adj and len(region) % 2 == 0
+                    ):
+                        logger.info(
+                            "Unclaimed territory shared equally by both players."
+                        )
+                        logger.info(f"{region}")
+                        logger.info(f"Adding {len(region) / 2} pieces to both players.")
+
+                        self.scores["Black"] += len(region) / 2
+                        self.scores["White"] += len(region) / 2
+                        continue
+
+                    elif len(region) > 1:
+                        logger.warning(
+                            "Uneven number of shared adjacenies in territory."
+                        )
+                        logger.warning(
+                            "Awarding points to whichever group has more adjacencies."
+                        )
+
+                # if region.is_seki:
+                #     pass
+
                 # Get piece with the most adjacencies to empty territory.
                 piece, _ = region.n_adj_pieces.most_common(1)[0]
+
                 if piece == black_piece_value:
                     self.scores["Black"] += len(region)
                     logger.info(
-                        f"Added territory of {len(region)} pieces to black's score.\n"
+                        f"Added territory of {len(region)} pieces to black's score."
                     )
                     logger.info(f"{region}")
                 else:
                     self.scores["White"] += len(region)
                     logger.info(
-                        f"Added territory of {len(region)} pieces to white's score.\n"
+                        f"Added territory of {len(region)} pieces to white's score."
                     )
                     logger.info(f"{region}")
 

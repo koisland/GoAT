@@ -73,6 +73,11 @@ class Region:
             return False
 
     @property
+    def is_dame(self) -> bool:
+        if np.isnan(self.color_val) and len(self.n_adj_pieces.keys()) > 1:
+            return True
+
+    @property
     def is_on_border(self) -> bool:
         n_rows = self.grid.shape[0]
         n_cols = self.grid.shape[1]
@@ -163,6 +168,14 @@ class Board:
             for region in self.regions
         )
 
+    def check_seki(self) -> Board:
+        for region in self.regions:
+            # Skip empty regions.
+            if np.isnan(region.color_val):
+                print(region)
+            else:
+                continue
+
     def clear_dead_regions(self) -> Board:
         logger.info("Clearing dead regions from board.")
         for region in self.dead_regions:
@@ -252,12 +265,15 @@ class Board:
                         if joined_region not in joined_regions:
                             joined_regions.append(joined_region)
 
+        # Number removed and number joined.
+        n_r, n_j = 0, 0
         for n_r, removed_region in enumerate(removed_regions, 1):
             logger.debug(f"Joining regions. Removing:\n{removed_region}")
             self.regions.remove(removed_region)
         for n_j, new_region in enumerate(joined_regions, 1):
             logger.debug(f"Joining regions. Adding:\n{new_region}")
             self.regions.append(new_region)
+
         logger.debug("Finished joining regions.")
         logger.debug(f"Removed intermediate regions: {n_r}")
         logger.debug(f"Added joined regions: {n_j}")

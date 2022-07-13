@@ -1,3 +1,4 @@
+import os
 import cv2
 import statistics
 import imutils
@@ -62,10 +63,10 @@ class Piece:
         return f"{self.color.capitalize()}: x_pos={self.x}, y_pos={self.y}"
 
     def __repr__(self) -> str:
-        return f'Piece("{self.color}",\
-            "{self.x_px}","{self.y_px}",\
-            "{self.w}","{self.h}",\
-            "{self.x}","{self.y}")'
+        x_y_px = f"{self.x_px}, {self.y_px}"
+        w_h = f"{self.w}, {self.h}"
+        x_y = f"{self.x}, {self.y}"
+        return f'Piece("{self.color}", {x_y_px}, {w_h}, {x_y})'
 
 
 # https://stackoverflow.com/a/15801233
@@ -115,6 +116,16 @@ def get_board_size(
     # Sorted groups pixels into enumerated clusters
     x_groups = dict(enumerate(cluster_positions(x_pos, 5), 1))
     y_groups = dict(enumerate(cluster_positions(y_pos, 5), 1))
+
+    # Replace axis with less coverage based on total # of pieces detected.
+    if len(x_groups) != len(y_groups):
+        n_groups = [len(x_groups), len(y_groups)]
+        larger_axis = n_groups.index(max(n_groups))
+        # If x has better coverage.
+        if larger_axis == 0:
+            y_groups = x_groups
+        else:
+            x_groups = y_groups
 
     # Find median value in clusters.
     x_positions = {
@@ -189,6 +200,15 @@ def get_pieces(img: np.ndarray) -> Tuple[List[Piece], List[Piece]]:
 
 
 def load_board(img_path: str) -> np.ndarray:
+    """
+    Load board as np array from image of goban.
+    :param img_path:
+
+    :return: goban as matrix where 1.0 is black and 0.0 is white.
+    """
+    if os.path.exists(img_path) is False:
+        raise Exception(f"Image, {img_path}, does not exist.")
+
     original = cv2.imread(img_path)
     logger.info(f"Initializing goban from image: {img_path}")
 
