@@ -1,4 +1,6 @@
 # Go Automatic Tallier (GoAT)
+[![CI](https://github.com/koisland/GoAT/actions/workflows/main.yaml/badge.svg)](https://github.com/koisland/GoAT/actions/workflows/main.yaml)
+
 Automatically tally score for Go boards from an image.
 
 ![](docs/images/5_5.png)
