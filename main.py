@@ -47,7 +47,7 @@ def main():
     board.clear_dead_regions()
 
     # Score board and declare score.
-    scoreboard.score(board, captured=captured_pieces)
+    scoreboard.score(board)
 
 
 if __name__ == "__main__":

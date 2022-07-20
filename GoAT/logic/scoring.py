@@ -1,5 +1,4 @@
 from __future__ import annotations
-import collections
 import numpy as np
 import logging
 
@@ -55,19 +54,19 @@ class Score:
 
         return self.scores
 
-    def _calculate_score(self, board: Board, captured: collections.Counter) -> Score:
+    def _calculate_score(self, board: Board) -> Score:
         """
         Score goban with Japanese (territory) or Chinese (area) method.
         Source:
             - https://senseis.xmp.net/?JapaneseCountingExample
             - https://senseis.xmp.net/?ChineseCountingExample
         :param board: Board instance
-        :param capture: Captured pieces
 
         :return: Score
         """
         black_piece_value = board.colors["Black"]
         white_piece_value = board.colors["White"]
+        captured = board.captures
 
         if self.system == "Japanese":
             # Subtract territory from group based on number of captured pieces.
@@ -159,13 +158,11 @@ class Score:
 
         return self
 
-    def score(self, board: Board, **kwargs):
+    def score(self, board: Board):
         logger.info(f"Scoring board using {self.system} scoring.")
-        if self.system == "Japanese" and "captured" not in kwargs:
-            raise Exception("No captured pieces provided.")
 
         # Calculate scores with given method.
-        self._calculate_score(board, captured=kwargs["captured"])
+        self._calculate_score(board)
 
         # Add komi if desired.
         if self.komi:

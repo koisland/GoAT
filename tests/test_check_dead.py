@@ -12,7 +12,7 @@ class TestDead(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        return super().tearDown()
+        pass
 
     def test_score(self):
         pass
