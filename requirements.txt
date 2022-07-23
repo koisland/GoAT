@@ -15,7 +15,7 @@ mccabe==0.6.1
 mypy-extensions==0.4.3
 nodeenv==1.7.0
 numpy==1.22.3
-opencv-python==4.5.5.64
+opencv-python-headless
 packaging==21.3
 pathspec==0.9.0
 platformdirs==2.5.2

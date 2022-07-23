@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ### Docker
 ```shell
-WIP
+docker build . -t go_at:latest
 ```
 
 ---
@@ -63,12 +63,17 @@ For example, this command reads `docs/images/9_9.png`, a digital image of a boar
 
 ![](docs/images/9_9.png)
 
+**Conda**
 ```shell
 python main.py -i docs/images/9_9.png -s Chinese -k
 ```
+**Docker**
 ```shell
-{'Black': 44, 'White': 44.5}
+docker run go_at:latest -i docs/images/9_9.png -s Chinese -k
 ```
+
+> `{'Black': 44, 'White': 44.5}`
+
 ---
 
 ## Scoring
