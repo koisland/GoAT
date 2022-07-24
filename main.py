@@ -1,6 +1,8 @@
 import argparse
+import pathlib
 import bidict
 from collections import Counter
+from loguru import logger
 
 from GoAT.logic.board import Board
 from GoAT.logic.scoring import Score
@@ -29,6 +31,15 @@ def main():
         help="Captured white stones by black.",
     )
 
+    # Setup logger.
+    working_dir = pathlib.Path(__file__).parents[0]
+    main_log = dict(
+        sink=working_dir.joinpath("logs", "run_{time}.log"),
+        format="{time} | {level} | {message}",
+        level="INFO",
+    )
+    logger.configure(handlers=[main_log])
+
     args = vars(ap.parse_args())
     grid = load_board(args["input"])
 
@@ -42,6 +53,12 @@ def main():
         captures=captured_pieces,
         colors=bidict.bidict({"Black": 1.0, "White": 0.0}),
     )
+
+    print(grid)
+    print(board.grid_view())
+    print(board.graph)
+    for region in board.seki_regions:
+        print(region)
 
     # Permanently clear dead regions and update captures.
     board.clear_dead_regions()

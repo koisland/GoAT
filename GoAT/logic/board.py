@@ -1,25 +1,27 @@
 from __future__ import annotations
 import collections
 import textwrap
-import logging
 import numpy as np
+import igraph
 
 from typing import Set, Tuple, List, Dict, Iterable
 from dataclasses import dataclass, field
 from itertools import product
 from collections import Counter
-
-logger = logging.getLogger("logic")
+from loguru import logger
 
 
 @dataclass
 class Region:
+    id_num: int = field(init=False, default=0)
     grid: np.ndarray = field(repr=False)
-    pieces: List[Tuple[int, int]]
+    pieces: Set[Tuple[int, int]]
     color_val: str = field(init=False)
 
     def __post_init__(self):
-        self.color_val = self.grid[self.pieces[0][0], self.pieces[0][1]]
+        # Get random piece in region to determine color value.
+        random_piece = next(iter(self.pieces))
+        self.color_val = self.grid[random_piece[0], random_piece[1]]
 
     def get_adj_pieces(self, piece: Tuple[int, int]) -> Iterable[Tuple[int, int]]:
         (row, col) = piece
@@ -95,8 +97,12 @@ class Region:
     def __len__(self):
         return len(self.pieces)
 
+    def __hash__(self) -> int:
+        return hash((tuple(self.pieces), self.color_val, self.id_num))
+
     def __str__(self):
         message = f"""
+            ID: {self.id_num}
             Region of {len(self.pieces)} pieces of {self.color_val}.
             Number of liberties: {len(self.liberties)}
             Pieces: {self.pieces}
@@ -111,7 +117,8 @@ class Board:
     grid: np.ndarray
     colors: Dict[str, float]
     captures: Counter[str, int]
-    regions: List[List[Tuple[int, int]]] = field(init=False)
+    regions: List[Region] = field(init=False)
+    graph: igraph.Graph = field(init=False)
 
     def validate_fields(self):
         x, y = self.grid.shape
@@ -135,15 +142,15 @@ class Board:
         self._get_regions()._join_nearby_regions()
 
     @property
-    def n_rows(self):
+    def n_rows(self) -> int:
         return self.grid.shape[0]
 
     @property
-    def n_cols(self):
+    def n_cols(self) -> int:
         return self.grid.shape[1]
 
     @property
-    def dead_regions(self):
+    def dead_regions(self) -> Iterable[Region]:
         for region in self.regions:
             # Skip empty regions.
             if np.isnan(region.color_val):
@@ -161,18 +168,22 @@ class Board:
         return dead_pieces
 
     @property
-    def region_counts(self):
+    def region_counts(self) -> Counter:
         # Avoid nan as key.
         return Counter(
             "nan" if np.isnan(region.color_val) else region.color_val
             for region in self.regions
         )
 
-    def check_seki(self) -> Board:
+    @property
+    def seki_regions(self) -> Iterable[Region]:
         for region in self.regions:
-            # Skip empty regions.
+            # If empty and has both players adjacent.
             if np.isnan(region.color_val):
-                print(region)
+                # 1st - check if legal placement.
+                # 2nd - Place both pieces
+                # 3rd - Reevaluate # dead groups.
+                yield region
             else:
                 continue
 
@@ -197,7 +208,7 @@ class Board:
 
         return self
 
-    def _cluster_pieces(self, loc: Tuple[int, int]) -> Iterable:
+    def _cluster_pieces(self, loc: Tuple[int, int]) -> Iterable[Tuple[int, int]]:
         row, col = loc
 
         yield loc
@@ -217,6 +228,7 @@ class Board:
                 yield from self._cluster_pieces((row + 1, col))
 
     def _get_regions(self) -> Board:
+        region_num = 1
         regions = []
         # Produce all separate regions by iterating through all pieces on board.
         # Then condensing intersecting regions.
@@ -232,10 +244,12 @@ class Board:
                     regions.pop(i)
 
             # Init subregion as Region obj.
-            subregion = Region(self.grid, list(subregion))
+            subregion = Region(self.grid, set(subregion))
 
             if subregion not in regions:
+                subregion.id_num = region_num
                 regions.append(subregion)
+                region_num += 1
 
         self.regions = regions
         logger.debug(f"Detected {len(self.regions)} total regions.")
@@ -249,14 +263,24 @@ class Board:
         """
         removed_regions = []
         joined_regions = []
+        adj_regions = []
         for n, region in enumerate(self.regions):
             for n2, region2 in enumerate(self.regions):
-                if n != n2 and region.color_val == region2.color_val:
-                    shared_liberties = region.liberties.intersection(region2.liberties)
-                    if len(shared_liberties) != 0:
-                        # Sort to ensure no duplicates are created.
-                        merged_pieces = sorted(region.pieces + region2.pieces)
-                        joined_region = Region(self.grid, list(merged_pieces))
+                # Ignore same region
+                if n == n2:
+                    continue
+
+                shared_liberties = region.liberties.intersection(region2.liberties)
+                adj_pieces = region.pieces.intersection(region2.adjacencies)
+                adj_pieces_2 = region.adjacencies.intersection(region2.pieces)
+                all_adjs = adj_pieces.union(adj_pieces_2)
+
+                # If share liberty, join regions.
+                if len(shared_liberties) != 0:
+                    if region.color_val == region2.color_val:
+                        # Use set to ensure no duplicates are created.
+                        merged_pieces = region.pieces.union(region2.pieces)
+                        joined_region = Region(self.grid, set(merged_pieces))
 
                         if region not in removed_regions:
                             removed_regions.append(region)
@@ -264,6 +288,9 @@ class Board:
                             removed_regions.append(region2)
                         if joined_region not in joined_regions:
                             joined_regions.append(joined_region)
+                # If adjacent pieces
+                if len(all_adjs) != 0:
+                    adj_regions.append((region.id_num, region2.id_num))
 
         # Number removed and number joined.
         n_r, n_j = 0, 0
@@ -274,10 +301,21 @@ class Board:
             logger.debug(f"Joining regions. Adding:\n{new_region}")
             self.regions.append(new_region)
 
+        # Generate graph
+        self.graph = igraph.Graph(adj_regions)
+
         logger.debug("Finished joining regions.")
         logger.debug(f"Removed intermediate regions: {n_r}")
         logger.debug(f"Added joined regions: {n_j}")
         return self
+
+    def grid_view(self):
+        grid_view = self.grid.copy()
+        for region in self.regions:
+            for piece in region.pieces:
+                row, col = piece
+                grid_view[row, col] = region.id_num
+        print(grid_view)
 
     def __str__(self):
         message = f"""

@@ -2,11 +2,10 @@ import os
 import cv2
 import statistics
 import imutils
-import logging
 import numpy as np
-from typing import Tuple, List, Dict, Iterator, Union
 
-logger = logging.getLogger("vision")
+from loguru import logger
+from typing import Tuple, List, Dict, Iterator, Union
 
 
 class Piece:

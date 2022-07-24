@@ -1,14 +1,12 @@
 from __future__ import annotations
 import numpy as np
-import logging
 
 from typing import Dict
 from collections import Counter
 from dataclasses import dataclass, field
+from loguru import logger
 
 from .board import Board
-
-logger = logging.getLogger("logic")
 
 SCORING_SYSTEMS = ["Japanese", "Chinese"]
 
