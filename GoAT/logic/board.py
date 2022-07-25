@@ -17,6 +17,7 @@ class Region:
     grid: np.ndarray = field(repr=False)
     pieces: Set[Tuple[int, int]]
     color_val: str = field(init=False)
+    is_seki: bool = field(init=False, default=False)
 
     def __post_init__(self):
         # Get random piece in region to determine color value.
@@ -106,6 +107,7 @@ class Region:
             Region of {len(self.pieces)} pieces of {self.color_val}.
             Number of liberties: {len(self.liberties)}
             Pieces: {self.pieces}
+            Seki: {self.is_seki if np.isnan(self.color_val) else "N/A"}
             On border: {self.is_on_border}
             Number adjacencies: {self.n_adj_pieces}
         """
@@ -138,8 +140,11 @@ class Board:
 
         logger.info(f"Pieces: {self.colors}")
         logger.info(f"Starting board:\n\n{self.grid}\n")
+        self._update()
+        # self._update_seki()
 
-        self._get_regions()._join_nearby_regions()
+    def _update(self):
+        self._get_regions()._join_nearby_regions()._update_graph()
 
     @property
     def n_rows(self) -> int:
@@ -175,17 +180,43 @@ class Board:
             for region in self.regions
         )
 
-    @property
-    def seki_regions(self) -> Iterable[Region]:
+    def _update_seki(self) -> Board:
+        n_dead_regions = len(list(self.dead_regions))
+        # I don't know why I can't update is_seki attribute in-place. Copy works.
+        updated_regions = []
         for region in self.regions:
+
             # If empty and has both players adjacent.
-            if np.isnan(region.color_val):
-                # 1st - check if legal placement.
-                # 2nd - Place both pieces
-                # 3rd - Reevaluate # dead groups.
-                yield region
-            else:
-                continue
+            if np.isnan(region.color_val) and len(region.n_adj_pieces) == 2:
+                for piece in region:
+                    if region.is_seki:
+                        break
+
+                    row, col = piece
+                    new_dead_regions = []
+                    # Check scenario if both players placed stone in territory.
+                    # Number of dead groups will be different for both if seki.
+                    for _, color_val in self.colors.items():
+                        self.grid[row, col] = color_val
+                        self._update()
+                        # Check new dead regions
+                        new_dead_regions.append(len(list(self.dead_regions)))
+
+                        # Reset to original state.
+                        self.grid[row, col] = np.nan
+                        self._update()
+
+                    # If number of dead regions for both changes, is seki.
+                    if all(
+                        new_n_dead_region != n_dead_regions
+                        for new_n_dead_region in new_dead_regions
+                    ):
+                        setattr(region, "is_seki", True)
+
+            updated_regions.append(region)
+
+        self.regions = updated_regions
+        return self
 
     def clear_dead_regions(self) -> Board:
         logger.info("Clearing dead regions from board.")
@@ -201,7 +232,9 @@ class Board:
             logger.info(f"Removed {i} {region_color} pieces from board.\n{region}")
 
         # Update regions.
-        self._get_regions()._join_nearby_regions()
+        self._update()
+        # self._update_seki()
+
         logger.debug(
             "Updated and joined adjacent board regions after clearing dead regions."
         )
@@ -226,6 +259,10 @@ class Board:
                 np.isnan(curr_piece) & np.isnan(adj_piece)
             ):
                 yield from self._cluster_pieces((row + 1, col))
+
+    @property
+    def region_nums(self):
+        return [region.id_num for region in self.regions]
 
     def _get_regions(self) -> Board:
         region_num = 1
@@ -263,7 +300,8 @@ class Board:
         """
         removed_regions = []
         joined_regions = []
-        adj_regions = []
+        new_region_num = max(self.region_nums) + 1
+
         for n, region in enumerate(self.regions):
             for n2, region2 in enumerate(self.regions):
                 # Ignore same region
@@ -271,9 +309,6 @@ class Board:
                     continue
 
                 shared_liberties = region.liberties.intersection(region2.liberties)
-                adj_pieces = region.pieces.intersection(region2.adjacencies)
-                adj_pieces_2 = region.adjacencies.intersection(region2.pieces)
-                all_adjs = adj_pieces.union(adj_pieces_2)
 
                 # If share liberty, join regions.
                 if len(shared_liberties) != 0:
@@ -282,15 +317,15 @@ class Board:
                         merged_pieces = region.pieces.union(region2.pieces)
                         joined_region = Region(self.grid, set(merged_pieces))
 
+                        joined_region.id_num = new_region_num
+                        new_region_num += 1
+
                         if region not in removed_regions:
                             removed_regions.append(region)
                         if region2 not in removed_regions:
                             removed_regions.append(region2)
                         if joined_region not in joined_regions:
                             joined_regions.append(joined_region)
-                # If adjacent pieces
-                if len(all_adjs) != 0:
-                    adj_regions.append((region.id_num, region2.id_num))
 
         # Number removed and number joined.
         n_r, n_j = 0, 0
@@ -301,15 +336,30 @@ class Board:
             logger.debug(f"Joining regions. Adding:\n{new_region}")
             self.regions.append(new_region)
 
-        # Generate graph
-        self.graph = igraph.Graph(adj_regions)
-
         logger.debug("Finished joining regions.")
         logger.debug(f"Removed intermediate regions: {n_r}")
         logger.debug(f"Added joined regions: {n_j}")
         return self
 
-    def grid_view(self):
+    def _update_graph(self) -> Board:
+        adj_regions = []
+        for n, region in enumerate(self.regions):
+            for n2, region2 in enumerate(self.regions):
+                # Ignore same region
+                if n == n2:
+                    continue
+
+                adj_pieces = region.pieces.intersection(region2.adjacencies)
+
+                # If adjacent pieces
+                if len(adj_pieces) != 0:
+                    adj_regions.append((region.id_num, region2.id_num))
+
+        # Generate graph
+        self.graph = igraph.Graph(adj_regions)
+        return self
+
+    def view_regions(self):
         grid_view = self.grid.copy()
         for region in self.regions:
             for piece in region.pieces:

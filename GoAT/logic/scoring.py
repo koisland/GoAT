@@ -128,8 +128,10 @@ class Score:
                             "Awarding points to whichever group has more adjacencies."
                         )
 
-                # if region.is_seki:
-                #     pass
+                if region.is_seki:
+                    logger.info("Seki territory. Ignored.")
+                    logger.info(f"{region}")
+                    continue
 
                 # Get piece with the most adjacencies to empty territory.
                 piece, _ = region.n_adj_pieces.most_common(1)[0]

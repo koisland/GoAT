@@ -54,12 +54,6 @@ def main():
         colors=bidict.bidict({"Black": 1.0, "White": 0.0}),
     )
 
-    print(grid)
-    print(board.grid_view())
-    print(board.graph)
-    for region in board.seki_regions:
-        print(region)
-
     # Permanently clear dead regions and update captures.
     board.clear_dead_regions()
 
